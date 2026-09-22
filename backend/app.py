@@ -72,17 +72,6 @@ def create_app(config_class=Config):
 
 app = create_app()
 
-# Pre-warm SentenceTransformer model in background thread on startup
-def _prewarm_worker():
-    try:
-        from backend.pipeline.embeddings import get_embedding_model
-        get_embedding_model()
-    except Exception as e:
-        logger.warning(f"Background model pre-warm notice: {e}")
-
-import threading
-threading.Thread(target=_prewarm_worker, daemon=True).start()
-
 if __name__ == "__main__":
     logger.info(f"Starting PaperBridge AI Backend on {Config.HOST}:{Config.PORT}")
     app.run(host=Config.HOST, port=Config.PORT, debug=False, use_reloader=False)

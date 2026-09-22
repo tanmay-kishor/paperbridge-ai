@@ -21,10 +21,14 @@ from backend.config import Config
 
 logger = logging.getLogger(__name__)
 
+# Fast in-memory cache to prevent duplicate external lookups
+_DOI_OA_CACHE = {}
+
 def check_unpaywall_oa(doi):
     """
     Queries the Unpaywall API for a given DOI to verify legitimate open-access status.
     Unpaywall requires an email parameter for tracking fair usage.
+    Fast 1.5s timeout with caching to prevent slow response times in cloud hosting.
     
     Returns:
       (is_oa: bool, oa_url: str or None, oa_source: str or None)
@@ -36,11 +40,14 @@ def check_unpaywall_oa(doi):
     if clean_doi.startswith("http"):
         clean_doi = clean_doi.split("doi.org/")[-1]
 
+    if clean_doi in _DOI_OA_CACHE:
+        return _DOI_OA_CACHE[clean_doi]
+
     url = f"{Config.UNPAYWALL_BASE_URL}/{clean_doi}"
     params = {"email": Config.UNPAYWALL_EMAIL}
 
     try:
-        resp = requests.get(url, params=params, timeout=6)
+        resp = requests.get(url, params=params, timeout=1.5)
         if resp.status_code == 200:
             data = resp.json()
             is_oa = bool(data.get("is_oa", False))
@@ -54,9 +61,15 @@ def check_unpaywall_oa(doi):
             host_type = best_location.get("host_type", "repository")
             oa_source = f"Unpaywall ({host_type.capitalize()} OA)" if is_oa else None
 
-            return is_oa, oa_url, oa_source
+            result = (is_oa, oa_url, oa_source)
+            _DOI_OA_CACHE[clean_doi] = result
+            return result
     except Exception as e:
-        logger.warning(f"Unpaywall API lookup failed for DOI '{doi}': {e}")
+        logger.warning(f"Unpaywall lookup skipped or timed out for '{clean_doi}': {e}")
+
+    result = (False, None, None)
+    _DOI_OA_CACHE[clean_doi] = result
+    return result
 
     return False, None, None
 

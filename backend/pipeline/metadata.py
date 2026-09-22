@@ -144,7 +144,7 @@ def retrieve_papers_by_topic(topic_query, limit=10):
 
     try:
         logger.info(f"Querying Semantic Scholar API for topic: '{topic_query}'")
-        resp = requests.get(url, params=params, headers=headers, timeout=8)
+        resp = requests.get(url, params=params, headers=headers, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             raw_papers = data.get("data", [])
@@ -187,7 +187,7 @@ def retrieve_paper_by_identifier(query):
         doi_val = clean_query.replace("https://doi.org/", "").replace("http://doi.org/", "")
         url = f"{Config.S2_BASE_URL}/paper/DOI:{doi_val}"
         try:
-            resp = requests.get(url, params={"fields": S2_FIELDS}, headers=headers, timeout=8)
+            resp = requests.get(url, params={"fields": S2_FIELDS}, headers=headers, timeout=5)
             if resp.status_code == 200:
                 target_paper = normalize_paper(resp.json())
         except Exception as e:
