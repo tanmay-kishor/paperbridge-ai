@@ -25,6 +25,7 @@ from backend.pipeline.metadata import (
 from backend.pipeline.embeddings import calculate_semantic_relevance
 from backend.pipeline.open_access import (
     verify_paper_accessibility,
+    verify_papers_accessibility_batch,
     filter_open_access_alternatives
 )
 from backend.pipeline.difficulty import assess_paper_difficulty
@@ -149,9 +150,8 @@ def run_pipeline(query, mode="topic", limit=10):
     # Step 3: Semantic topic matching & Cosine Similarity
     calculate_semantic_relevance(clean_query, candidates_to_rank)
 
-    # Step 4: Open Access Verification
-    for paper in candidates_to_rank:
-        verify_paper_accessibility(paper)
+    # Step 4: Open Access Verification (Parallel Batch)
+    verify_papers_accessibility_batch(candidates_to_rank)
 
     # Step 5: Readability & Difficulty Assessment
     for paper in candidates_to_rank:
