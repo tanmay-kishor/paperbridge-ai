@@ -1,0 +1,15 @@
+# Decision Log (`docs/decision-log.md`)
+
+This living document tracks technical decisions made during the PaperBridge AI project, including the reasoning, alternatives considered, and module ownership. This serves directly as source material for the research paper's Methodology section and viva defense.
+
+| Date | Decision | Reasoning | Alternative Considered | Owner |
+| :--- | :--- | :--- | :--- | :--- |
+| 2026-09-22 | **Use Semantic Scholar as Primary Metadata API** | Provides title, abstract, citation count, DOI, and built-in open-access status in a single structured JSON response without requiring paid API keys. | CrossRef, arXiv API alone (too narrow domain), PubMed (biomedical only). | Track A |
+| 2026-09-22 | **Use Unpaywall as Primary OA Verification** | Broadest legitimate DOI coverage for institutional and green/gold open-access repositories with a simple, free email-based API query. | arXiv-only lookup, Sci-Hub (strictly rejected: illegal copyright violation). | Track B |
+| 2026-09-22 | **Sentence Transformers (`all-MiniLM-L6-v2`) for Embeddings** | Fast inference on CPU (~22M parameters, 384-dimensional dense vectors), state-of-the-art semantic sentence similarity, small footprint. | TF-IDF / BM25 (keyword-only, misses synonyms), large LLMs / GPT-4 (slow, expensive, high latency). | Track A |
+| 2026-09-22 | **Cosine Similarity for Semantic Ranking** | Normalized dot product compares directional orientation in embedding space independent of text length. Standard, interpretable $O(d)$ calculation. | Euclidean distance (sensitive to magnitude), Manhattan distance. | Track A |
+| 2026-09-24 | **Use Flesch-Kincaid Grade Level + Jargon Density** | Flesch-Kincaid captures syllable/sentence structural complexity. Jargon density captures domain vocabulary. Combining 2 signals avoids redundant correlation while capturing academic density. | Combining all 5 readability formulas (Gunning Fog, SMOG, Coleman-Liau correlate >0.85 without adding new signal). | Track B |
+| 2026-09-24 | **Paywall Fallback via Abstract-to-Topic Semantic Re-matching** | If a searched paper is paywalled, taking its abstract and finding the highest cosine-similarity open-access papers solves the "dead-end" problem legitimately. | Suggesting only papers by the same author, returning a dead-end message. | Track B |
+| 2026-09-25 | **Vite + React with Scannable Badges** | Nielsen Norman Group research shows users scan within 10-20 seconds. Badges for relevance, access, and difficulty provide instant cognitive triage. | Plain unstyled text lists, heavy bloated UI frameworks. | Track C |
+| 2026-09-25 | **Client-Side Vercel Demo Fallback** | Allows frontend preview hosting on Vercel without requiring a dedicated cloud Flask instance to be live at all times. | Broken error state when backend is offline. | Track C |
+| 2026-09-25 | **Explicit Cybersecurity Disclosures** | Prototype isolates inputs, enforces safe DOI regex, sanitizes URLs, and documents missing auth/rate-limiting to ensure academic integrity. | Omitting security gaps and leaving undisclosed vulnerabilities. | All Tracks |
