@@ -31,12 +31,19 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Enable CORS for the specified origins
+    # Enable universal CORS across all endpoints for cloud hosting
     CORS(
         app,
-        resources={r"/api/*": {"origins": "*"}},  # Permissive for local prototype demo
-        supports_credentials=True
+        resources={r"/*": {"origins": "*"}},
+        supports_credentials=False
     )
+
+    @app.after_request
+    def apply_cors_headers(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, HEAD"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
+        return response
 
     # Register blueprints
     app.register_blueprint(api_bp)

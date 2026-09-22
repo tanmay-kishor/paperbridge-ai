@@ -8,7 +8,8 @@
  * 3. Fallback demo mode for preview deployments (e.g., hosted on Vercel without a live backend).
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const RAW_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = RAW_URL.trim().replace(/\/+$/, '');
 
 /**
  * Check backend connectivity
