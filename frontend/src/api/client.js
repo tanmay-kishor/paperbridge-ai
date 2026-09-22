@@ -127,12 +127,34 @@ export async function getSampleQueries() {
 function getOfflineDemoFallback(query, mode) {
   const q = query.toLowerCase();
 
-  if (q.includes("transformer") || q.includes("time series")) {
+  if (q.includes("transformer") || q.includes("time series") || q.includes("machine learning") || q.includes("deep learning")) {
     return {
       query,
       mode,
-      total_results: 2,
+      total_results: 3,
       results: [
+        {
+          id: "demo_attention",
+          title: "Attention Is All You Need",
+          authors: ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones"],
+          year: 2017,
+          venue: "NeurIPS",
+          abstract: "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks. We propose the Transformer, based solely on attention mechanisms, dispensing with recurrence entirely.",
+          doi: "10.48550/arXiv.1706.03762",
+          citation_count: 112000,
+          relevance_score: 0.96,
+          is_open_access: true,
+          oa_url: "https://arxiv.org/pdf/1706.03762.pdf",
+          oa_source: "arXiv (Green Open Access)",
+          difficulty: {
+            level: "Intermediate",
+            fk_grade: 11.5,
+            jargon_density: 0.16,
+            summary: "Foundational architecture paper introducing the Transformer."
+          },
+          is_paywall_fallback: false,
+          why_recommended: "Landmark machine learning paper (96% semantic match); free open-access PDF."
+        },
         {
           id: "demo_informer",
           title: "Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting",
@@ -142,7 +164,7 @@ function getOfflineDemoFallback(query, mode) {
           abstract: "Many real-world applications require the prediction of long sequence time-series, such as electricity consumption planning. Long sequence time-series forecasting (LSTF) demands a high prediction capacity. We design an efficient Transformer-based model for LSTF, named Informer, with ProbSparse self-attention.",
           doi: "10.1609/aaai.v35i12.17325",
           citation_count: 3100,
-          relevance_score: 0.94,
+          relevance_score: 0.91,
           is_open_access: true,
           oa_url: "https://arxiv.org/pdf/2012.07436.pdf",
           oa_source: "Unpaywall / arXiv",
@@ -153,7 +175,7 @@ function getOfflineDemoFallback(query, mode) {
             summary: "Standard technical conference paper with moderate architectural notation."
           },
           is_paywall_fallback: false,
-          why_recommended: "Ranked #1 for time-series transformers; 94% semantic match; verified open-access preprint available."
+          why_recommended: "High semantic match (91%); ProbSparse self-attention mechanism; verified free PDF."
         },
         {
           id: "demo_autoformer",
@@ -164,7 +186,7 @@ function getOfflineDemoFallback(query, mode) {
           abstract: "Extending the forecast horizon is a critical challenge. Existing models adopt self-attention to discover sub-series similarity, which is computationally prohibitive. We propose Autoformer with an Auto-Correlation mechanism.",
           doi: "10.48550/arXiv.2106.13008",
           citation_count: 1850,
-          relevance_score: 0.89,
+          relevance_score: 0.88,
           is_open_access: true,
           oa_url: "https://arxiv.org/pdf/2106.13008.pdf",
           oa_source: "Unpaywall / arXiv",
@@ -175,7 +197,7 @@ function getOfflineDemoFallback(query, mode) {
             summary: "Theoretical decomposition and autocorrelation mathematical framing."
           },
           is_paywall_fallback: false,
-          why_recommended: "High semantic similarity (89%); novel autocorrelation mechanism; free PDF."
+          why_recommended: "High semantic similarity (88%); novel autocorrelation mechanism; free PDF."
         }
       ],
       paywalled_original: null
