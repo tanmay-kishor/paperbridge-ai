@@ -1,0 +1,29 @@
+{
+  "queries": [
+    {
+      "query": "transformer models for time series forecasting",
+      "mode": "topic",
+      "description": "Explores deep learning sequence models applied to temporal regression and anomaly detection."
+    },
+    {
+      "query": "quantum key distribution protocols security",
+      "mode": "topic",
+      "description": "Focuses on cryptography protocols like BB84, E91, and continuous-variable QKD."
+    },
+    {
+      "query": "graph neural networks for drug discovery",
+      "mode": "topic",
+      "description": "Molecular graph representation, molecular property prediction, and generative chemistry."
+    },
+    {
+      "query": "Attention Is All You Need",
+      "mode": "paper",
+      "description": "Landmark paper introducing the Transformer architecture by Vaswani et al. (2017)."
+    },
+    {
+      "query": "10.1145/3318464.3389700",
+      "mode": "paper",
+      "description": "Paywalled SIGMOD paper demonstrating automated paywall fallback to open-access alternatives."
+    }
+  ]
+}

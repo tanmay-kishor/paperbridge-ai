@@ -1,0 +1,133 @@
+[
+  {
+    "paperId": "s2_vaswani_2017",
+    "title": "Attention Is All You Need",
+    "authors": [
+      {"name": "Ashish Vaswani"},
+      {"name": "Noam Shazeer"},
+      {"name": "Niki Parmar"},
+      {"name": "Jakob Uszkoreit"},
+      {"name": "Llion Jones"},
+      {"name": "Aidan N. Gomez"},
+      {"name": "Lukasz Kaiser"},
+      {"name": "Illia Polosukhin"}
+    ],
+    "year": 2017,
+    "venue": "NeurIPS",
+    "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.",
+    "doi": "10.48550/arXiv.1706.03762",
+    "citationCount": 112000,
+    "isOpenAccess": true,
+    "openAccessPdf": {
+      "url": "https://arxiv.org/pdf/1706.03762.pdf",
+      "status": "GREEN"
+    }
+  },
+  {
+    "paperId": "s2_informer_2021",
+    "title": "Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting",
+    "authors": [
+      {"name": "Haoyi Zhou"},
+      {"name": "Shanghang Zhang"},
+      {"name": "Jieqi Peng"},
+      {"name": "Shuai Zhang"},
+      {"name": "Jianxin Li"}
+    ],
+    "year": 2021,
+    "venue": "AAAI Conference on Human Computation and Crowdsourcing",
+    "abstract": "Many real-world applications require the prediction of long sequence time-series, such as electricity consumption planning. Long sequence time-series forecasting (LSTF) demands a high prediction capacity of the model, which is the ability to capture relatively long-range dependencies efficiently. Recent studies have shown the potential of Transformer to increase the prediction capacity. However, there are several severe issues with Transformer that prevent it from being directly applied to LSTF, such as the quadratic time complexity and memory usage. To address these issues, we design an efficient Transformer-based model for LSTF, named Informer.",
+    "doi": "10.1609/aaai.v35i12.17325",
+    "citationCount": 3100,
+    "isOpenAccess": true,
+    "openAccessPdf": {
+      "url": "https://arxiv.org/pdf/2012.07436.pdf",
+      "status": "GREEN"
+    }
+  },
+  {
+    "paperId": "s2_autoformer_2021",
+    "title": "Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting",
+    "authors": [
+      {"name": "Haixu Wu"},
+      {"name": "Jiehui Xu"},
+      {"name": "Jianmin Wang"},
+      {"name": "Mingsheng Long"}
+    ],
+    "year": 2021,
+    "venue": "NeurIPS",
+    "abstract": "Extending the forecast horizon is a critical challenge for long-term series forecasting. Existing Transformer-based models adopt various self-attention mechanisms to discover the sub-series similarity, which however is computationally prohibitive and prone to point-wise degradation. To break this bottleneck, we go beyond the point-wise attention to series-level connections. In this paper, we propose Autoformer as a novel decomposition architecture with an Auto-Correlation mechanism.",
+    "doi": "10.48550/arXiv.2106.13008",
+    "citationCount": 1850,
+    "isOpenAccess": true,
+    "openAccessPdf": {
+      "url": "https://arxiv.org/pdf/2106.13008.pdf",
+      "status": "GREEN"
+    }
+  },
+  {
+    "paperId": "s2_paywalled_db_2020",
+    "title": "Adaptive Query Optimization in Distributed Cloud Databases",
+    "authors": [
+      {"name": "Marcus Vance"},
+      {"name": "Elena Rostova"}
+    ],
+    "year": 2020,
+    "venue": "ACM SIGMOD Conference on Management of Data",
+    "abstract": "Commercial cloud database management systems face unpredictable execution latency across distributed clusters. We present an adaptive query optimization framework that continuously gathers runtime pipeline statistics to reorganize distributed join operator pipelines on-the-fly. Our optimizer reduces ninety-ninth percentile tail latency by sixty percent under heterogeneous network environments.",
+    "doi": "10.1145/3318464.3389700",
+    "citationCount": 142,
+    "isOpenAccess": false,
+    "openAccessPdf": null
+  },
+  {
+    "paperId": "s2_oa_db_alternative_2021",
+    "title": "OpenQuery: An Open Source Dynamic Query Engine for Heterogeneous Cloud Systems",
+    "authors": [
+      {"name": "Sarah Lin"},
+      {"name": "Devin Miller"}
+    ],
+    "year": 2021,
+    "venue": "VLDB Endowment",
+    "abstract": "Dynamic query optimization in heterogeneous cloud computing allows low latency joins across distributed database nodes. We evaluate OpenQuery, an accessible open-source framework matching commercial adaptive query engines, with complete replication scripts and benchmarks.",
+    "doi": "10.14778/3476249.3476251",
+    "citationCount": 89,
+    "isOpenAccess": true,
+    "openAccessPdf": {
+      "url": "https://www.vldb.org/pvldb/vol14/p2100-lin.pdf",
+      "status": "GOLD"
+    }
+  },
+  {
+    "paperId": "s2_bb84_qkd_tutorial",
+    "title": "A Beginner's Guide to Quantum Key Distribution and the BB84 Protocol",
+    "authors": [
+      {"name": "Alice Sterling"},
+      {"name": "Bob Henderson"}
+    ],
+    "year": 2022,
+    "venue": "IEEE Communications Surveys & Tutorials",
+    "abstract": "Quantum Key Distribution enables two parties to produce a shared random secret key known only to them, which can then be used to encrypt and decrypt messages. This tutorial provides a foundational introduction to the principles of quantum cryptography, explaining polarization states, the no-cloning theorem, and photon transmission without requiring advanced quantum electrodynamics prerequisites.",
+    "doi": "10.1109/COMST.2022.3150001",
+    "citationCount": 310,
+    "isOpenAccess": true,
+    "openAccessPdf": {
+      "url": "https://arxiv.org/pdf/2201.00001.pdf",
+      "status": "GREEN"
+    }
+  },
+  {
+    "paperId": "s2_qkd_advanced_proof",
+    "title": "Device-Independent Asymptotic Security Proofs for Continuous-Variable Quantum Key Distribution",
+    "authors": [
+      {"name": "Vikram Seth"},
+      {"name": "Claire Dubois"}
+    ],
+    "year": 2023,
+    "venue": "Physical Review Letters",
+    "abstract": "We establish a non-asymptotic composable security proof for continuous-variable quantum key distribution against collective coherent eavesdropping attacks in Hilbert space. Utilizing symplectic diagonalization of arbitrary Gaussian state covariances and entropic uncertainty relations under finite-size fluctuations, we derive tight secret key rate bounds for untrusted heterodyne receiver apparatuses.",
+    "doi": "10.1103/PhysRevLett.130.080801",
+    "citationCount": 78,
+    "isOpenAccess": false,
+    "openAccessPdf": null
+  }
+]

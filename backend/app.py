@@ -45,6 +45,17 @@ def create_app(config_class=Config):
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
         return response
 
+    @app.errorhandler(Exception)
+    def handle_global_error(e):
+        logger.exception(f"Unhandled exception in API request: {e}")
+        resp = jsonify({
+            "error": "Internal API processing notice",
+            "message": str(e)
+        })
+        resp.status_code = 500
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp
+
     # Register blueprints
     app.register_blueprint(api_bp, url_prefix="/api")
 
@@ -60,6 +71,17 @@ def create_app(config_class=Config):
     return app
 
 app = create_app()
+
+# Pre-warm SentenceTransformer model in background thread on startup
+def _prewarm_worker():
+    try:
+        from backend.pipeline.embeddings import get_embedding_model
+        get_embedding_model()
+    except Exception as e:
+        logger.warning(f"Background model pre-warm notice: {e}")
+
+import threading
+threading.Thread(target=_prewarm_worker, daemon=True).start()
 
 if __name__ == "__main__":
     logger.info(f"Starting PaperBridge AI Backend on {Config.HOST}:{Config.PORT}")

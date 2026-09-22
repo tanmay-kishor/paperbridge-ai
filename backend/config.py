@@ -38,5 +38,7 @@ class Config:
     # Path to offline sample datasets
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
+    if not os.path.exists(DATA_DIR):
+        DATA_DIR = os.path.join(BASE_DIR, "data")
     SAMPLE_PAPERS_PATH = os.path.join(DATA_DIR, "test_papers.json")
     SAMPLE_QUERIES_PATH = os.path.join(DATA_DIR, "sample_queries.json")
