@@ -4,14 +4,16 @@ echo ===================================================
 echo           PaperBridge AI - Starting Services
 echo ===================================================
 
+set "ROOT_DIR=%~dp0"
+
 echo [1/3] Launching Flask Backend API (Port 5000)...
-start "PaperBridge-Backend" /min cmd /k "cd /d C:\Users\tznma\.gemini\antigravity\scratch\paperbridge-ai\backend && python app.py"
+start "PaperBridge-Backend" /min cmd /k "cd /d "%ROOT_DIR%backend" && python app.py"
 
 echo Waiting 2 seconds for backend to initialize...
 timeout /t 2 /nobreak >nul
 
 echo [2/3] Launching Vite React Frontend (Port 5173)...
-start "PaperBridge-Frontend" /min cmd /k "cd /d C:\Users\tznma\.gemini\antigravity\scratch\paperbridge-ai\frontend && npm run dev"
+start "PaperBridge-Frontend" /min cmd /k "cd /d "%ROOT_DIR%frontend" && npm run dev"
 
 echo Waiting 2 seconds for frontend to initialize...
 timeout /t 2 /nobreak >nul
