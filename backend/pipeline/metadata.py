@@ -126,10 +126,94 @@ def get_offline_sample_papers():
         logger.warning(f"Unable to read sample papers fallback: {e}")
     return []
 
+def retrieve_papers_from_arxiv(topic_query, limit=10):
+    """
+    Queries the arXiv API for live academic research papers.
+    Serves as an immediate, live fallback whenever Semantic Scholar returns HTTP 429
+    (common on shared cloud hosting IP addresses).
+    """
+    import xml.etree.ElementTree as ET
+    import urllib.parse
+
+    clean_query = urllib.parse.quote_plus(topic_query.strip())
+    url = f"https://export.arxiv.org/api/query?search_query=all:{clean_query}&start=0&max_results={limit}"
+
+    try:
+        logger.info(f"Querying arXiv API for: '{topic_query}'")
+        resp = requests.get(url, timeout=6)
+        if resp.status_code == 200:
+            root = ET.fromstring(resp.text)
+            ns = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
+            entries = root.findall("atom:entry", ns)
+            papers = []
+            for e in entries:
+                title_elem = e.find("atom:title", ns)
+                title = title_elem.text.strip().replace("\n", " ") if title_elem is not None else ""
+                
+                # Check for empty or error arXiv response entry
+                if not title or title == "Error":
+                    continue
+                    
+                summary_elem = e.find("atom:summary", ns)
+                abstract = summary_elem.text.strip().replace("\n", " ") if summary_elem is not None else ""
+                
+                id_elem = e.find("atom:id", ns)
+                raw_id = id_elem.text.strip() if id_elem is not None else ""
+                arxiv_id = raw_id.split("/abs/")[-1] if "/abs/" in raw_id else raw_id
+                
+                # Extract authors
+                authors = []
+                for a in e.findall("atom:author", ns):
+                    name_elem = a.find("atom:name", ns)
+                    if name_elem is not None and name_elem.text:
+                        authors.append(name_elem.text.strip())
+                if not authors:
+                    authors = ["Unknown Author"]
+                
+                # Extract year
+                published_elem = e.find("atom:published", ns)
+                year = None
+                if published_elem is not None and published_elem.text:
+                    try:
+                        year = int(published_elem.text[:4])
+                    except (ValueError, TypeError):
+                        year = None
+                
+                # Direct PDF URL
+                oa_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf" if arxiv_id else None
+                
+                doi_elem = e.find("arxiv:doi", ns)
+                doi = doi_elem.text.strip() if doi_elem is not None else None
+                
+                papers.append({
+                    "id": f"arxiv_{arxiv_id}",
+                    "title": title,
+                    "authors": authors,
+                    "year": year,
+                    "venue": "arXiv",
+                    "abstract": abstract,
+                    "doi": doi,
+                    "arxiv_id": arxiv_id,
+                    "citation_count": 0,
+                    "is_open_access": True,
+                    "oa_url": oa_url,
+                    "oa_source": "arXiv (Open Access)"
+                })
+            if papers:
+                logger.info(f"Retrieved {len(papers)} live papers from arXiv API.")
+                return papers
+    except Exception as e:
+        logger.warning(f"Error querying arXiv API: {e}")
+
+    return []
+
 def retrieve_papers_by_topic(topic_query, limit=10):
     """
-    Queries the Semantic Scholar Graph Search API by topic keywords.
-    Returns a list of normalized paper dictionaries.
+    Queries academic paper repositories by topic keywords.
+    Strategy:
+    1. Query Semantic Scholar Graph API.
+    2. If Semantic Scholar returns 429 (rate-limited) or fails, query arXiv API for live papers.
+    3. If external network is down, fall back to offline benchmark dataset.
     """
     headers = {}
     if Config.SEMANTIC_SCHOLAR_API_KEY:
@@ -152,13 +236,18 @@ def retrieve_papers_by_topic(topic_query, limit=10):
             if normalized:
                 return normalized
         elif resp.status_code == 429:
-            logger.warning("Semantic Scholar rate limit reached (HTTP 429). Using offline fallback dataset.")
+            logger.warning("Semantic Scholar rate limit reached (HTTP 429). Falling back to arXiv API.")
         else:
             logger.warning(f"Semantic Scholar API returned HTTP {resp.status_code}: {resp.text[:120]}")
     except Exception as e:
-        logger.warning(f"Network error querying Semantic Scholar API: {e}. Falling back to sample dataset.")
+        logger.warning(f"Network error querying Semantic Scholar API: {e}. Falling back to arXiv API.")
 
-    # Resilient fallback: return filtered sample papers matching topic keywords or sample list
+    # High-availability live fallback: query arXiv API
+    arxiv_papers = retrieve_papers_from_arxiv(topic_query, limit=limit)
+    if arxiv_papers:
+        return arxiv_papers
+
+    # Resilient offline fallback: return filtered sample papers matching topic keywords or sample list
     samples = get_offline_sample_papers()
     keywords = [k.lower() for k in re.split(r"\s+", topic_query) if len(k) > 2]
     matched = []
