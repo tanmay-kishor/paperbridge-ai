@@ -30,6 +30,11 @@ class Config:
     UNPAYWALL_EMAIL = os.environ.get("UNPAYWALL_EMAIL", "paperbridge.prototype@student.edu")
     UNPAYWALL_BASE_URL = "https://api.unpaywall.org/v2"
 
+    # OpenAlex API Settings
+    # Open catalog of 250M+ scientific works; provides 100k requests/day free in the polite pool
+    OPENALEX_BASE_URL = "https://api.openalex.org"
+    OPENALEX_EMAIL = os.environ.get("OPENALEX_EMAIL", "paperbridge.prototype@student.edu")
+
     # NLP Model Settings
     # 'all-MiniLM-L6-v2' maps sentences & paragraphs to a 384 dimensional dense vector space.
     # It is chosen for fast CPU inference (~22M parameters) without requiring expensive GPU hardware.

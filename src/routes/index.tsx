@@ -245,6 +245,7 @@ function Index() {
   const [activeNav, setActiveNav] = useState("Discover");
   const [openOnly, setOpenOnly] = useState(false);
   const [difficulty, setDifficulty] = useState("Any level");
+  const [publishedSpan, setPublishedSpan] = useState("Any time");
   const [isDark, setIsDark] = useState(false);
 
   // Search API lifecycle states
@@ -344,13 +345,21 @@ function Index() {
   const visiblePapers = processedResults.filter((paper) => {
     if (openOnly && !paper.is_open_access) return false;
     if (difficulty !== "Any level" && paper.difficulty?.level !== difficulty) return false;
+    if (publishedSpan !== "Any time" && typeof paper.year === "number") {
+      if (publishedSpan === "Since 2021 (Last 5 yrs)" && paper.year < 2021) return false;
+      if (publishedSpan === "Since 2016 (Last 10 yrs)" && paper.year < 2016) return false;
+      if (publishedSpan === "Since 2011 (Last 15 yrs)" && paper.year < 2011) return false;
+      if (publishedSpan === "Since 2006 (Last 20 yrs)" && paper.year < 2006) return false;
+      if (publishedSpan === "Prior to 2011 (Classic works)" && paper.year >= 2011) return false;
+    }
     return true;
   });
 
-  const hasActiveFilters = openOnly || difficulty !== "Any level";
+  const hasActiveFilters = openOnly || difficulty !== "Any level" || publishedSpan !== "Any time";
   const clearFilters = () => {
     setOpenOnly(false);
     setDifficulty("Any level");
+    setPublishedSpan("Any time");
   };
 
   const isGenuineEmpty =
@@ -554,10 +563,16 @@ function Index() {
             </label>
             <label>
               <span>Published</span>
-              <select>
+              <select
+                value={publishedSpan}
+                onChange={(event) => setPublishedSpan(event.target.value)}
+              >
                 <option>Any time</option>
-                <option>Since 2022</option>
-                <option>Since 2024</option>
+                <option>Since 2021 (Last 5 yrs)</option>
+                <option>Since 2016 (Last 10 yrs)</option>
+                <option>Since 2011 (Last 15 yrs)</option>
+                <option>Since 2006 (Last 20 yrs)</option>
+                <option>Prior to 2011 (Classic works)</option>
               </select>
             </label>
             <Button variant="ghost" className="clear-button" onClick={clearFilters}>
@@ -652,9 +667,13 @@ function Index() {
                 <p className="empty-state-copy">
                   Your search for <strong>“{submittedQuery}”</strong> returned{" "}
                   {searchResponse.total_results} papers, but none match your active filters (
-                  {openOnly ? "Open access only" : ""}
-                  {openOnly && difficulty !== "Any level" ? ", " : ""}
-                  {difficulty !== "Any level" ? difficulty : ""}).
+                  {[
+                    openOnly ? "Open access only" : null,
+                    difficulty !== "Any level" ? difficulty : null,
+                    publishedSpan !== "Any time" ? publishedSpan : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}).
                 </p>
                 <Button variant="outline" onClick={clearFilters} className="sketch-button mt-3">
                   <RotateCcw className="w-3.5 h-3.5 mr-1" /> Try again without filters

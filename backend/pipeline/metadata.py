@@ -226,6 +226,107 @@ def retrieve_papers_from_arxiv(topic_query, limit=10):
     except Exception as e:
         logger.warning(f"Error querying arXiv API: {e}")
 
+def normalize_openalex_work(w):
+    """
+    Normalizes a single work record from OpenAlex into the standard PaperBridge paper dict.
+    """
+    if not w or not isinstance(w, dict):
+        return None
+
+    title = (w.get("title") or "").strip()
+    if not title:
+        return None
+
+    # Reconstruct abstract from OpenAlex abstract_inverted_index if available
+    abstract = ""
+    inv_index = w.get("abstract_inverted_index")
+    if isinstance(inv_index, dict) and inv_index:
+        try:
+            pos_words = sorted([(pos, word) for word, positions in inv_index.items() for pos in positions])
+            abstract = " ".join([pw[1] for pw in pos_words]).strip()
+        except Exception:
+            abstract = ""
+
+    # Authors
+    authors = []
+    for a in w.get("authorships", []):
+        author_obj = a.get("author") or {}
+        name = author_obj.get("display_name")
+        if name:
+            authors.append(name)
+    if not authors:
+        authors = ["Academic Researcher"]
+
+    # Venue / Source
+    primary_loc = w.get("primary_location") or {}
+    source_obj = primary_loc.get("source") or {}
+    venue = source_obj.get("display_name") or "Scholarly Publication"
+
+    # DOI
+    raw_doi = w.get("doi") or ""
+    doi = raw_doi.replace("https://doi.org/", "").replace("http://doi.org/", "") or None
+
+    # Open Access Information
+    oa_info = w.get("open_access") or {}
+    is_oa = bool(oa_info.get("is_oa", False))
+    oa_url = oa_info.get("oa_url") or primary_loc.get("pdf_url") or primary_loc.get("landing_page_url")
+    oa_status = (oa_info.get("oa_status") or "open").capitalize()
+    oa_source = f"OpenAlex ({oa_status} OA)" if is_oa else None
+
+    # Fields of study / concepts
+    concepts = [c.get("display_name") for c in w.get("concepts", []) if c.get("display_name")]
+
+    # Referenced works
+    ref_ids = [r.split("/")[-1] for r in w.get("referenced_works", [])[:10]]
+
+    # Work ID
+    raw_id = w.get("id") or ""
+    openalex_id = raw_id.split("/")[-1] if "/" in raw_id else raw_id
+
+    return {
+        "id": f"openalex_{openalex_id}",
+        "title": title,
+        "authors": authors,
+        "year": w.get("publication_year"),
+        "venue": venue,
+        "abstract": abstract if abstract else title,
+        "doi": doi,
+        "arxiv_id": None,
+        "citation_count": w.get("cited_by_count", 0) or 0,
+        "is_open_access": is_oa,
+        "oa_url": oa_url if is_oa else None,
+        "oa_source": oa_source,
+        "fields_of_study": concepts[:5],
+        "reference_ids": ref_ids
+    }
+
+def retrieve_papers_from_openalex(topic_query, limit=10):
+    """
+    Queries the OpenAlex API for live academic research papers.
+    OpenAlex catalogs 250M+ scholarly works with integrated Unpaywall open-access status.
+    Provides 100,000 free requests/day in the polite pool.
+    """
+    import urllib.parse
+    clean_query = urllib.parse.quote_plus(topic_query.strip())
+    url = f"{Config.OPENALEX_BASE_URL}/works?search={clean_query}&per_page={min(limit, 25)}"
+    headers = {
+        "User-Agent": f"PaperBridge/1.0 (mailto:{Config.OPENALEX_EMAIL})"
+    }
+
+    try:
+        logger.info(f"Querying OpenAlex API for topic: '{topic_query}'")
+        resp = requests.get(url, headers=headers, timeout=6)
+        if resp.status_code == 200:
+            data = resp.json()
+            results = data.get("results", [])
+            papers = [normalize_openalex_work(w) for w in results]
+            valid_papers = [p for p in papers if p and p.get("title")]
+            if valid_papers:
+                logger.info(f"Retrieved {len(valid_papers)} live papers from OpenAlex API.")
+                return valid_papers
+    except Exception as e:
+        logger.warning(f"Error querying OpenAlex API: {e}")
+
     return []
 
 def retrieve_papers_by_topic(topic_query, limit=10):
@@ -257,13 +358,18 @@ def retrieve_papers_by_topic(topic_query, limit=10):
             if normalized:
                 return normalized
         elif resp.status_code == 429:
-            logger.warning("Semantic Scholar rate limit reached (HTTP 429). Falling back to arXiv API.")
+            logger.warning("Semantic Scholar rate limit reached (HTTP 429). Falling back to OpenAlex & arXiv.")
         else:
             logger.warning(f"Semantic Scholar API returned HTTP {resp.status_code}: {resp.text[:120]}")
     except Exception as e:
-        logger.warning(f"Network error querying Semantic Scholar API: {e}. Falling back to arXiv API.")
+        logger.warning(f"Network error querying Semantic Scholar API: {e}. Falling back to OpenAlex & arXiv.")
 
-    # High-availability live fallback: query arXiv API
+    # High-availability live fallback 1: OpenAlex API (250M+ works catalog)
+    openalex_papers = retrieve_papers_from_openalex(topic_query, limit=limit)
+    if openalex_papers:
+        return openalex_papers
+
+    # High-availability live fallback 2: arXiv API
     arxiv_papers = retrieve_papers_from_arxiv(topic_query, limit=limit)
     if arxiv_papers:
         return arxiv_papers
@@ -280,7 +386,7 @@ def retrieve_papers_by_topic(topic_query, limit=10):
 
 def retrieve_paper_by_identifier(query):
     """
-    Retrieves a specific paper by DOI or exact Title from Semantic Scholar.
+    Retrieves a specific paper by DOI or exact Title from Semantic Scholar / OpenAlex.
     Returns (target_paper_dict, candidate_papers_list).
     """
     clean_query = query.strip()
@@ -302,6 +408,20 @@ def retrieve_paper_by_identifier(query):
                 target_paper = normalize_paper(resp.json())
         except Exception as e:
             logger.warning(f"Error fetching paper by DOI from S2: {e}")
+
+        # If DOI was not resolved by Semantic Scholar, resolve via OpenAlex
+        if not target_paper:
+            try:
+                oa_url = f"{Config.OPENALEX_BASE_URL}/works/https://doi.org/{doi_val}"
+                oa_resp = requests.get(
+                    oa_url,
+                    headers={"User-Agent": f"PaperBridge/1.0 (mailto:{Config.OPENALEX_EMAIL})"},
+                    timeout=5
+                )
+                if oa_resp.status_code == 200:
+                    target_paper = normalize_openalex_work(oa_resp.json())
+            except Exception as e:
+                logger.warning(f"Error fetching paper by DOI from OpenAlex: {e}")
 
     # If not found yet, query by title
     if not target_paper:
