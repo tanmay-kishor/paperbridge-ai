@@ -767,6 +767,81 @@
   text-decoration: underline;
   font-size: 11px;
 }
+
+/* Dark Mode Filter Board & Refine Button (Option 1: Midnight Slate with Candlelight Gold) */
+.dark .filter-board {
+  background: oklch(0.23 0.035 255);
+  border: 2px solid oklch(0.82 0.12 85);
+  box-shadow: 4px 4px 0 oklch(0.82 0.12 85 / 35%);
+  color: oklch(0.95 0.015 92);
+}
+
+.dark .filter-title {
+  color: oklch(0.85 0.12 85);
+}
+
+.dark .filter-title svg {
+  color: oklch(0.85 0.12 85);
+}
+
+.dark .filter-board label {
+  color: oklch(0.95 0.015 92);
+}
+
+.dark .filter-board select {
+  background: oklch(0.18 0.035 255);
+  border: 1.5px solid oklch(0.82 0.12 85 / 55%);
+  color: oklch(0.95 0.015 92);
+}
+
+.dark .filter-board select option {
+  background: oklch(0.18 0.035 255);
+  color: oklch(0.95 0.015 92);
+}
+
+.dark .filter-board select:focus {
+  border-color: oklch(0.82 0.12 85);
+  outline: none;
+}
+
+.dark .filter-board input[type="checkbox"] {
+  accent-color: oklch(0.82 0.12 85);
+}
+
+.dark .clear-button {
+  color: oklch(0.85 0.12 85);
+}
+
+.dark .clear-button:hover {
+  color: oklch(0.96 0.06 85);
+}
+
+.dark .filter-button {
+  background: oklch(0.23 0.035 255);
+  border: 2px solid oklch(0.82 0.12 85);
+  box-shadow: 3px 3px 0 oklch(0.82 0.12 85 / 35%);
+  color: oklch(0.95 0.015 92);
+}
+
+.dark .filter-button:hover {
+  background: oklch(0.26 0.035 255);
+  box-shadow: 1px 1px 0 oklch(0.82 0.12 85 / 35%);
+}
+
+.dark .mode-pill-active {
+  background: oklch(0.24 0.035 255);
+  border-color: oklch(0.82 0.12 85);
+  box-shadow: 3px 3px 0 oklch(0.82 0.12 85 / 45%);
+  color: oklch(0.95 0.015 92);
+}
+
+.dark .nav-active {
+  background: oklch(0.24 0.035 255);
+  border-color: oklch(0.82 0.12 85);
+  box-shadow: 3px 3px 0 oklch(0.82 0.12 85 / 45%);
+  color: oklch(0.95 0.015 92);
+}
+
 .papers-list {
   grid-column: 1;
   grid-row: 2;
