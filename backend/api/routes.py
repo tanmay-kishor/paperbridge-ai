@@ -81,44 +81,33 @@ def search():
     if mode not in ("topic", "paper"):
         mode = "topic"
 
-    # Attempt to invoke the recommendation pipeline if available
+    # Invoke the recommendation pipeline.
+    #
+    # NOTE: this used to catch bare `ImportError` and silently return a fake
+    # "hello world" scaffold response whenever ANY import inside the pipeline
+    # failed -- including unrelated dependency problems (e.g. a missing/broken
+    # textstat or sentence-transformers install). That meant a broken environment
+    # could make every single search return identical fake data with no visible
+    # error, which is indistinguishable from "working" unless you read server logs.
+    # The pipeline is fully implemented now, so real errors should surface as a
+    # proper 500 with a logged traceback instead of being masked.
     try:
         from backend.pipeline.ranker import run_pipeline
+    except ModuleNotFoundError as e:
+        # Only true if the ranker module file itself is missing/misplaced --
+        # a real setup problem, not something to hide behind fake data.
+        logger.exception(f"Pipeline module could not be found: {e}")
+        return jsonify({
+            "error": "Search pipeline is not available on this server (module not found).",
+            "detail": str(e)
+        }), 500
+
+    try:
         response_data = run_pipeline(query=query, mode=mode, limit=limit)
         return jsonify(response_data), 200
-    except ImportError:
-        # Pipeline is still under active incremental construction; serve verified mock data
-        logger.info("Pipeline module not fully plugged in yet; returning scaffold response.")
-        return jsonify({
-            "query": query,
-            "mode": mode,
-            "total_results": 1,
-            "results": [
-                {
-                    "id": "hello_world_001",
-                    "title": "PaperBridge AI: Scaffolding Connection Verified",
-                    "authors": ["Track A", "Track B", "Track C"],
-                    "year": 2026,
-                    "venue": "PaperBridge AI Development Build",
-                    "abstract": f"Connection verified successfully for query '{query}' in '{mode}' mode. The backend API is responding cleanly to frontend requests.",
-                    "doi": "10.1000/182",
-                    "citation_count": 42,
-                    "relevance_score": 0.99,
-                    "is_open_access": True,
-                    "oa_url": "https://arxiv.org/pdf/1706.03762.pdf",
-                    "oa_source": "PaperBridge Verified Connection",
-                    "difficulty": {
-                        "level": "Foundational",
-                        "fk_grade": 8.0,
-                        "jargon_density": 0.05,
-                        "summary": "Verified connection between React frontend and Flask backend."
-                    },
-                    "is_paywall_fallback": False,
-                    "why_recommended": "Live Hello World communication established between frontend and backend."
-                }
-            ],
-            "paywalled_original": None
-        }), 200
     except Exception as e:
         logger.exception(f"Error executing recommendation search: {e}")
-        return jsonify({"error": "An internal error occurred while processing your search."}), 500
+        return jsonify({
+            "error": "An internal error occurred while processing your search.",
+            "detail": str(e)
+        }), 500

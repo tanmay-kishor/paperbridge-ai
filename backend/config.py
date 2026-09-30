@@ -28,7 +28,13 @@ class Config:
     # NLP Model Settings
     # 'all-MiniLM-L6-v2' maps sentences & paragraphs to a 384 dimensional dense vector space.
     # It is chosen for fast CPU inference (~22M parameters) without requiring expensive GPU hardware.
-    EMBEDDING_MODEL_NAME = os.environ.get("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2")
+    # allenai-specter is trained on scientific paper citation graphs (not generic text),
+    # so semantically similar academic papers embed closer together than a general-purpose
+    # model would place them. Loadable directly via sentence-transformers, same interface
+    # as the previous MiniLM model -- no extra dependencies required. 768-dim output
+    # (vs MiniLM's 384-dim); see EMBEDDING_DIM below.
+    EMBEDDING_MODEL_NAME = os.environ.get("EMBEDDING_MODEL_NAME", "sentence-transformers/allenai-specter")
+    EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", "768"))
 
     # Security / Sanitization Limits
     MAX_QUERY_LENGTH = 300

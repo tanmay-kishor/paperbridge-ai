@@ -10,11 +10,21 @@ Reasoning & Mathematical Foundation (Viva Reference):
      semantically related concepts are clustered closely together, capturing
      contextual meaning beyond surface vocabulary.
 
-2. Why the 'all-MiniLM-L6-v2' Architecture?
-   - Pre-trained on >1 billion sentence pairs.
-   - Extremely lightweight (~22.7M parameters, 384 dimensions) and highly optimized
-     for low-latency CPU inference (~15ms per sentence).
-   - Ideal for student prototypes and production edge deployments without GPU costs.
+2. Why 'allenai-specter' instead of a generic sentence model?
+   - Generic models (e.g. all-MiniLM-L6-v2) are trained on general-purpose sentence
+     pairs, not scientific text -- two papers can read as similar on surface wording
+     while being at very different depths, or vice versa.
+   - SPECTER is trained specifically on citation relationships between papers: papers
+     that domain experts actually cite together are pulled closer in embedding space
+     during training. This makes similarity scores reflect topical/scholarly
+     relatedness rather than just shared vocabulary -- directly relevant to the
+     paywall-fallback credibility problem (see open_access.py).
+   - Loaded via the same sentence-transformers interface as before; the only change
+     is the model name in Config.EMBEDDING_MODEL_NAME. Output is 768-dim rather than
+     MiniLM's 384-dim (see Config.EMBEDDING_DIM).
+   - Known limitation, stated plainly: SPECTER still measures topical/citation-pattern
+     closeness, not scientific rigor or contribution depth -- it improves the proxy,
+     it does not replace the credibility filter in open_access.py.
 
 3. Why Cosine Similarity?
    - Formula: cos(theta) = (u . v) / (||u|| * ||v||)
@@ -43,7 +53,9 @@ def is_low_memory_env():
     try:
         import psutil
         avail_mb = psutil.virtual_memory().available / 1e6
-        if avail_mb < 750:
+        # allenai-specter (~440MB on disk) needs more headroom than MiniLM did;
+        # threshold raised accordingly so low-memory hosts still fall back safely.
+        if avail_mb < 1200:
             return True
     except Exception:
         pass
@@ -67,10 +79,11 @@ def get_embedding_model():
 
 def compute_embeddings(text_list):
     """
-    Encodes a list of string texts into a 2D numpy array of dense 384-d vectors.
+    Encodes a list of string texts into a 2D numpy array of dense vectors
+    (768-d for allenai-specter; see Config.EMBEDDING_DIM).
     """
     if not text_list:
-        return np.empty((0, 384), dtype=np.float32)
+        return np.empty((0, Config.EMBEDDING_DIM), dtype=np.float32)
 
     model = get_embedding_model()
     embeddings = model.encode(text_list, convert_to_numpy=True, normalize_embeddings=True, show_progress_bar=False)

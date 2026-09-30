@@ -31,19 +31,8 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Enable universal CORS across all endpoints for cloud hosting
-    CORS(
-        app,
-        resources={r"/*": {"origins": "*"}},
-        supports_credentials=False
-    )
-
-    @app.after_request
-    def apply_cors_headers(response):
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, HEAD"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
-        return response
+    # Use configured frontend origins in development/production.
+    CORS(app, resources={r"/api/*": {"origins": Config.CORS_ORIGINS}}, supports_credentials=False)
 
     @app.errorhandler(Exception)
     def handle_global_error(e):
@@ -53,7 +42,6 @@ def create_app(config_class=Config):
             "message": str(e)
         })
         resp.status_code = 500
-        resp.headers["Access-Control-Allow-Origin"] = "*"
         return resp
 
     # Register blueprints

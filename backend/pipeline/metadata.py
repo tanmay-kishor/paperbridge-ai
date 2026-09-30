@@ -25,7 +25,16 @@ from backend.config import Config
 logger = logging.getLogger(__name__)
 
 # Standard fields requested from Semantic Scholar Graph API
-S2_FIELDS = "paperId,title,abstract,authors,year,venue,citationCount,isOpenAccess,openAccessPdf,externalIds"
+# fieldsOfStudy + externalIds.DOI support the credibility/threshold filter used by the
+# paywall-fallback logic (see open_access.py). references.paperId is used for
+# bibliographic-overlap scoring (see open_access.py:_bibliographic_overlap) -- a
+# depth-relatedness proxy stronger than topic similarity alone: two papers that cite
+# a lot of the same prior work are more likely addressing the same specific
+# sub-problem at a comparable depth, not just using similar words.
+S2_FIELDS = (
+    "paperId,title,abstract,authors,year,venue,citationCount,isOpenAccess,"
+    "openAccessPdf,externalIds,fieldsOfStudy,references.paperId"
+)
 
 def normalize_paper(raw_paper):
     """
@@ -97,6 +106,16 @@ def normalize_paper(raw_paper):
 
     oa_source = raw_paper.get("oa_source") or ("Semantic Scholar OA" if is_open_access else None)
 
+    # Fields of study (used as a hard filter for the paywall-fallback credibility check)
+    fields_of_study = raw_paper.get("fieldsOfStudy") or raw_paper.get("fields_of_study") or []
+    if not isinstance(fields_of_study, list):
+        fields_of_study = []
+
+    # Reference paper IDs (used for bibliographic-overlap scoring in open_access.py).
+    # Semantic Scholar returns a list of {"paperId": ...} dicts under "references".
+    raw_refs = raw_paper.get("references") or []
+    reference_ids = [r.get("paperId") for r in raw_refs if isinstance(r, dict) and r.get("paperId")]
+
     return {
         "id": paper_id,
         "title": title,
@@ -109,7 +128,9 @@ def normalize_paper(raw_paper):
         "citation_count": citation_count,
         "is_open_access": is_open_access,
         "oa_url": oa_url,
-        "oa_source": oa_source
+        "oa_source": oa_source,
+        "fields_of_study": fields_of_study,
+        "reference_ids": reference_ids
     }
 
 def get_offline_sample_papers():
@@ -255,7 +276,7 @@ def retrieve_papers_by_topic(topic_query, limit=10):
         searchable_text = f"{p['title']} {p['abstract']}".lower()
         if any(kw in searchable_text for kw in keywords):
             matched.append(p)
-    return matched if matched else samples[:limit]
+    return matched if matched else ([] if keywords else samples[:limit])
 
 def retrieve_paper_by_identifier(query):
     """

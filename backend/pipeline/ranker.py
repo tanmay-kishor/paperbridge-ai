@@ -26,7 +26,7 @@ from backend.pipeline.embeddings import calculate_semantic_relevance
 from backend.pipeline.open_access import (
     verify_paper_accessibility,
     verify_papers_accessibility_batch,
-    filter_open_access_alternatives
+    find_credible_open_access_alternatives
 )
 from backend.pipeline.difficulty import assess_paper_difficulty
 
@@ -94,34 +94,38 @@ def run_pipeline(query, mode="topic", limit=10):
 
             if not target_paper.get("is_open_access"):
                 # PAYWALL FALLBACK TRIGGERED:
-                # The user requested a paywalled paper.
-                # Take its abstract (or title) and feed it into semantic search to find OPEN-ACCESS alternatives.
+                # The user requested a paywalled paper. Its title/abstract/citation metadata
+                # are public regardless of paywall status, so we use them (never the full text)
+                # to search for credible, legitimately open-access related work.
                 paywalled_original = {
                     "title": target_paper.get("title"),
                     "doi": target_paper.get("doi"),
                     "venue": target_paper.get("venue"),
-                    "note": "This paper is paywalled. PaperBridge AI has surfaced legitimate open-access alternatives."
+                    "note": "This paper is paywalled. Related open-access work is shown below where a "
+                            "credible match exists -- these are related work, not equivalent replacements."
                 }
 
-                # Semantic search using the target paper's content as query
+                # Semantic search using the target paper's content as query. Rank candidates
+                # against the paywalled paper's abstract BEFORE filtering, since the threshold
+                # and credibility check both depend on relevance_score being populated first.
                 seed_text = f"{target_paper.get('title')}. {target_paper.get('abstract')}".strip()
-                # Get candidates
-                oa_candidates = retrieve_papers_by_topic(target_paper.get("title"), limit=limit * 2)
-                # Verify accessibility
-                for c in oa_candidates:
-                    verify_paper_accessibility(c)
-                # Filter strictly for open-access alternatives
-                open_alternatives = filter_open_access_alternatives(oa_candidates, exclude_id=target_paper.get("id"))
+                oa_candidates = retrieve_papers_by_topic(target_paper.get("title"), limit=limit * 3)
+                calculate_semantic_relevance(seed_text, oa_candidates)
 
-                if not open_alternatives:
-                    # Use offline sample fallback alternatives if external pool yielded none
+                open_alternatives, no_alternative_found = find_credible_open_access_alternatives(
+                    oa_candidates, original_paper=target_paper, exclude_id=target_paper.get("id")
+                )
+
+                if no_alternative_found:
+                    # Try the offline sample pool once more before concluding nothing exists,
+                    # but still apply the same threshold/credibility bar -- never force a weak match.
                     all_samples = get_offline_sample_papers()
-                    open_alternatives = [p for p in all_samples if p.get("is_open_access") and p.get("id") != target_paper.get("id")]
+                    sample_candidates = [p for p in all_samples if p.get("id") != target_paper.get("id")]
+                    calculate_semantic_relevance(seed_text, sample_candidates)
+                    open_alternatives, no_alternative_found = find_credible_open_access_alternatives(
+                        sample_candidates, original_paper=target_paper, exclude_id=target_paper.get("id")
+                    )
 
-                # Rank open-access alternatives against the paywalled paper's semantic representation
-                calculate_semantic_relevance(seed_text, open_alternatives)
-                
-                # Assess difficulty
                 for p in open_alternatives:
                     assess_paper_difficulty(p)
                     p["is_paywall_fallback"] = True
@@ -130,22 +134,67 @@ def run_pipeline(query, mode="topic", limit=10):
                 open_alternatives.sort(key=composite_score, reverse=True)
                 final_results = open_alternatives[:limit]
 
+                if no_alternative_found:
+                    paywalled_original["note"] = (
+                        "This paper is paywalled, and no comparable open-access work was found above "
+                        "our relevance and credibility threshold. This paper may be a uniquely foundational "
+                        "contribution without a close substitute -- accessing it directly (institutional "
+                        "access, interlibrary loan, or contacting the authors) may be necessary."
+                    )
+
                 return {
                     "query": clean_query,
                     "mode": mode,
                     "total_results": len(final_results),
                     "results": final_results,
-                    "paywalled_original": paywalled_original
+                    "paywalled_original": paywalled_original,
+                    "no_alternative_found": no_alternative_found
                 }
 
-        # If paper is open-access or no specific paywall fallback triggered:
+        # If paper is open-access: surface it first with is_exact_match=True and relevance_score=1.0
+        if target_paper and target_paper.get("is_open_access"):
+            assess_paper_difficulty(target_paper)
+            target_paper["is_exact_match"] = True
+            target_paper["is_paywall_fallback"] = False
+            target_paper["relevance_score"] = 1.0
+            target_paper["why_recommended"] = f"Exact match for '{clean_query}'; Free PDF available."
+
+            other_candidates = [c for c in (candidates or []) if c.get("id") != target_paper.get("id")]
+            if other_candidates:
+                seed_text = f"{target_paper.get('title')}. {target_paper.get('abstract')}".strip()
+                calculate_semantic_relevance(seed_text, other_candidates)
+                verify_papers_accessibility_batch(other_candidates)
+                for p in other_candidates:
+                    assess_paper_difficulty(p)
+                    p["is_paywall_fallback"] = False
+                    p["is_exact_match"] = False
+                    p["why_recommended"] = generate_recommendation_reason(p, is_fallback=False)
+                other_candidates.sort(key=composite_score, reverse=True)
+
+            final_results = [target_paper] + other_candidates[: limit - 1]
+            return {
+                "query": clean_query,
+                "mode": mode,
+                "total_results": len(final_results),
+                "results": final_results,
+                "paywalled_original": None,
+                "no_alternative_found": False,
+            }
+
         candidates_to_rank = candidates if candidates else [target_paper] if target_paper else []
     else:
         # Mode: Topic Query
         candidates_to_rank = retrieve_papers_by_topic(clean_query, limit=limit)
 
     if not candidates_to_rank:
-        candidates_to_rank = get_offline_sample_papers()[:limit]
+        return {
+            "query": clean_query,
+            "mode": mode,
+            "total_results": 0,
+            "results": [],
+            "paywalled_original": None,
+            "no_alternative_found": False,
+        }
 
     # Step 3: Semantic topic matching & Cosine Similarity
     calculate_semantic_relevance(clean_query, candidates_to_rank)
@@ -168,5 +217,6 @@ def run_pipeline(query, mode="topic", limit=10):
         "mode": mode,
         "total_results": len(final_results),
         "results": final_results,
-        "paywalled_original": None
+        "paywalled_original": None,
+        "no_alternative_found": False
     }
