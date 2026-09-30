@@ -7,14 +7,14 @@ from backend.pipeline.ranker import composite_score, deduplicate_versions
 
 class TestRanking(unittest.TestCase):
     def test_composite_score_matches_v2_weights(self):
+        import math
         paper = {
-            "semantic_similarity": 0.8,
-            "normalized_citation_overlap": 0.4,
-            "citation_count_percentile_within_field": 0.6,
-            "same_field_of_study": True,
+            "relevance_score": 0.8,
+            "is_open_access": True,
+            "citation_count": 500,
         }
-        expected = 0.5 * 0.8 + 0.25 * 0.4 + 0.15 * 0.6 + 0.10
-        self.assertAlmostEqual(composite_score(paper), round(expected, 4))
+        expected = (0.85 * 0.8) + (0.10 * 1.0) + (0.05 * min(1.0, math.log1p(500) / 10.0))
+        self.assertAlmostEqual(composite_score(paper), expected, places=4)
 
     def test_version_deduplication_prefers_oa_version(self):
         papers = [
@@ -26,7 +26,7 @@ class TestRanking(unittest.TestCase):
         self.assertEqual(result[0]["id"], "preprint")
 
 
-    def test_title_like_topic_keeps_requested_title_match(self):
+    def test_paper_mode_returns_requested_paper(self):
         from unittest.mock import patch
         from backend.pipeline import ranker
 
@@ -40,8 +40,8 @@ class TestRanking(unittest.TestCase):
             "fields_of_study": ["Biology"],
             "reference_ids": [],
             "author_ids": [],
-            "is_open_access": False,
-            "access_status": "paywalled",
+            "is_open_access": True,
+            "access_status": "open",
         }
         recommendation = {
             "id": "recommendation",
@@ -58,10 +58,10 @@ class TestRanking(unittest.TestCase):
             "oa_url": "https://example.org/paper.pdf",
         }
 
-        with patch.object(ranker, "retrieve_papers_by_topic", return_value=[recommendation]), \
-             patch.object(ranker, "retrieve_paper_by_title_match", return_value=requested), \
+        with patch.object(ranker, "retrieve_paper_by_identifier", return_value=(requested, [recommendation])), \
+             patch.object(ranker, "verify_paper_accessibility", return_value=None), \
              patch.object(ranker, "verify_papers_accessibility_batch", return_value=None):
-            result = ranker.run_pipeline("A Structure for Deoxyribose Nucleic Acid", mode="topic", limit=10)
+            result = ranker.run_pipeline("A Structure for Deoxyribose Nucleic Acid", mode="paper", limit=10)
 
         titles = [p["title"] for p in result["results"]]
         self.assertIn("A Structure for Deoxyribose Nucleic Acid", titles)

@@ -69,6 +69,27 @@ def composite_score(paper):
     score = (0.85 * rel) + (0.10 * oa_boost) + (0.05 * cite_signal)
     return score
 
+def deduplicate_versions(papers):
+    """
+    Deduplicates paper results based on DOI or Title, prioritizing legitimately
+    open-access versions over paywalled versions.
+    """
+    seen = {}
+    for p in papers:
+        key = (p.get("doi") or p.get("title", "")).lower().strip()
+        if not key:
+            continue
+        if key not in seen:
+            seen[key] = p
+        else:
+            existing = seen[key]
+            if not existing.get("is_open_access") and p.get("is_open_access"):
+                seen[key] = p
+            elif existing.get("is_open_access") == p.get("is_open_access"):
+                if (p.get("citation_count") or 0) > (existing.get("citation_count") or 0):
+                    seen[key] = p
+    return list(seen.values())
+
 def run_pipeline(query, mode="topic", limit=10):
     """
     Full Recommendation Pipeline Execution:
@@ -81,6 +102,10 @@ def run_pipeline(query, mode="topic", limit=10):
     7. Multi-signal ranking and explainability generation.
     """
     clean_query = query.strip()
+    is_doi = clean_query.startswith("10.") or "doi.org/" in clean_query
+    if is_doi:
+        mode = "paper"
+
     logger.info(f"Executing PaperBridge recommendation pipeline: query='{clean_query}', mode='{mode}'")
 
     paywalled_original = None

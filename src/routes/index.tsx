@@ -301,7 +301,14 @@ function Index() {
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
-    performSearch(query, searchMode);
+    const trimmed = query.trim();
+    const isDoi = trimmed.startsWith("10.") || trimmed.includes("doi.org/");
+    const effectiveMode = isDoi ? "paper" : searchMode;
+    if (isDoi && searchMode !== "paper") {
+      setSearchMode("paper");
+      setActiveNav("Paper lookup");
+    }
+    performSearch(trimmed, effectiveMode);
   }
 
   function switchMode(newMode: SearchMode) {

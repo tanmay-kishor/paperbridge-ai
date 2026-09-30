@@ -108,11 +108,15 @@ def calculate_tfidf_similarity(query_text, candidate_papers, doc_texts):
             else:
                 normalized = 0.50
             paper["relevance_score"] = normalized
+            paper["semantic_similarity"] = normalized
+            paper["embedding_method"] = "tfidf_fallback"
         return candidate_papers
     except Exception as ex:
         logger.error(f"TF-IDF similarity error: {ex}")
         for paper in candidate_papers:
             paper["relevance_score"] = 0.75
+            paper["semantic_similarity"] = 0.75
+            paper["embedding_method"] = "tfidf_fallback"
         return candidate_papers
 
 def calculate_semantic_relevance(query_text, candidate_papers):
@@ -147,7 +151,10 @@ def calculate_semantic_relevance(query_text, candidate_papers):
 
         for idx, paper in enumerate(candidate_papers):
             score = float(np.clip(sim_scores[idx], 0.0, 1.0))
-            paper["relevance_score"] = round(score, 4)
+            rounded = round(score, 4)
+            paper["relevance_score"] = rounded
+            paper["semantic_similarity"] = rounded
+            paper["embedding_method"] = "specter2"
 
         return candidate_papers
     except Exception as e:

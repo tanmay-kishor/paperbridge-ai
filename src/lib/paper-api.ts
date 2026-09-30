@@ -161,18 +161,24 @@ export function getApiBaseUrl(): string {
 
 export function getLocalDemoResponse(payload: PaperSearchRequest): PaperSearchResponse {
   const query = payload.query.toLowerCase().trim();
+  if (!query) {
+    return {
+      query: payload.query,
+      mode: payload.mode || "topic",
+      total_results: LOCAL_DEMO_PAPERS.length,
+      results: LOCAL_DEMO_PAPERS,
+      paywalled_original: null,
+      no_alternative_found: false,
+    };
+  }
+
   const queryWords = query.split(/\s+/).filter((w) => w.length > 2);
 
-  let filtered = LOCAL_DEMO_PAPERS.filter((p) => {
-    if (!query) return true;
-    const text = `${p.title} ${p.abstract} ${p.authors.join(" ")}`.toLowerCase();
+  const filtered = LOCAL_DEMO_PAPERS.filter((p) => {
+    const text = `${p.title} ${p.abstract} ${p.authors.join(" ")} ${p.doi || ""}`.toLowerCase();
     if (text.includes(query)) return true;
-    return queryWords.some((word) => text.includes(word));
+    return queryWords.length > 0 && queryWords.some((word) => text.includes(word));
   });
-
-  if (filtered.length === 0) {
-    filtered = LOCAL_DEMO_PAPERS;
-  }
 
   return {
     query: payload.query,

@@ -384,12 +384,37 @@ def retrieve_papers_by_topic(topic_query, limit=10):
             matched.append(p)
     return matched if matched else ([] if keywords else samples[:limit])
 
+def is_title_match(query_title: str, candidate_title: str) -> bool:
+    """
+    Determines if candidate_title is a legitimate match for query_title.
+    Prevents unrelated search results from being claimed as exact title matches.
+    """
+    if not query_title or not candidate_title:
+        return False
+    q = re.sub(r"[^\w\s]", "", query_title.lower()).strip()
+    c = re.sub(r"[^\w\s]", "", candidate_title.lower()).strip()
+    if not q or not c:
+        return False
+    # Exact or substring match (ignoring punctuation and casing)
+    if q == c or q in c or c in q:
+        return True
+    # Word overlap ratio for multi-word queries
+    q_words = set(w for w in q.split() if len(w) > 2)
+    c_words = set(w for w in c.split() if len(w) > 2)
+    if not q_words:
+        return False
+    overlap = len(q_words & c_words) / len(q_words)
+    return overlap >= 0.6
+
 def retrieve_paper_by_identifier(query):
     """
     Retrieves a specific paper by DOI or exact Title from Semantic Scholar / OpenAlex.
     Returns (target_paper_dict, candidate_papers_list).
+    If no matching paper is found, returns (None, []).
     """
     clean_query = query.strip()
+    if not clean_query:
+        return None, []
     
     # Check if query is formatted as DOI
     is_doi = clean_query.startswith("10.") or "doi.org/" in clean_query
@@ -400,7 +425,7 @@ def retrieve_paper_by_identifier(query):
     target_paper = None
 
     if is_doi:
-        doi_val = clean_query.replace("https://doi.org/", "").replace("http://doi.org/", "")
+        doi_val = clean_query.replace("https://doi.org/", "").replace("http://doi.org/", "").strip()
         url = f"{Config.S2_BASE_URL}/paper/DOI:{doi_val}"
         try:
             resp = requests.get(url, params={"fields": S2_FIELDS}, headers=headers, timeout=5)
@@ -423,24 +448,43 @@ def retrieve_paper_by_identifier(query):
             except Exception as e:
                 logger.warning(f"Error fetching paper by DOI from OpenAlex: {e}")
 
-    # If not found yet, query by title
-    if not target_paper:
+        # Offline fallback: check if DOI matches one of our benchmark sample papers
+        if not target_paper:
+            samples = get_offline_sample_papers()
+            for p in samples:
+                if p.get("doi") and (doi_val.lower() == p["doi"].lower() or doi_val.lower() in p["doi"].lower()):
+                    target_paper = p
+                    break
+
+        # If not found after checking S2, OpenAlex, and benchmark DOIs, DO NOT force a fallback!
+        if not target_paper:
+            logger.info(f"No paper found for DOI '{clean_query}'.")
+            return None, []
+
+    else:
+        # User entered a Paper Title to look up
+        # 1. Search Semantic Scholar / OpenAlex / arXiv for candidates
         candidates = retrieve_papers_by_topic(clean_query, limit=5)
-        if candidates:
-            target_paper = candidates[0]
-
-    # Offline fallback check if target_paper still None
-    if not target_paper:
-        samples = get_offline_sample_papers()
-        for p in samples:
-            if clean_query.lower() in p["title"].lower() or (p.get("doi") and clean_query in p["doi"]):
-                target_paper = p
+        for c in candidates:
+            if is_title_match(clean_query, c.get("title", "")):
+                target_paper = c
                 break
-        if not target_paper and samples:
-            target_paper = samples[0]
 
-    # Also retrieve related candidate papers on the same subject to power recommendations / fallbacks
-    topic_keywords = target_paper["title"] if target_paper else clean_query
+        # 2. Check offline sample papers for a title match
+        if not target_paper:
+            samples = get_offline_sample_papers()
+            for p in samples:
+                if is_title_match(clean_query, p.get("title", "")):
+                    target_paper = p
+                    break
+
+        # If no paper matched the requested title, return None and empty list
+        if not target_paper:
+            logger.info(f"No paper found matching title '{clean_query}'.")
+            return None, []
+
+    # Target paper was found! Retrieve related candidate papers on the same subject to power recommendations / fallbacks
+    topic_keywords = target_paper.get("title") or clean_query
     related_candidates = retrieve_papers_by_topic(topic_keywords, limit=10)
 
     # Ensure target paper is in candidate list if not already present
@@ -450,3 +494,4 @@ def retrieve_paper_by_identifier(query):
             related_candidates.insert(0, target_paper)
 
     return target_paper, related_candidates
+
