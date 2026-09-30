@@ -1,8 +1,8 @@
 /**
  * PaperBridge AI - API Client
  * Keeps Flask integration encapsulated behind this module.
- * Connects to the Flask backend via VITE_PAPERBRIDGE_API_URL and preserves
- * local demo data when unset (in accordance with project architecture rules).
+ * Connects to the Flask backend via VITE_PAPERBRIDGE_API_URL (or VITE_API_BASE_URL)
+ * and preserves local demo data when unset (in accordance with project architecture rules).
  */
 
 export const PAPERBRIDGE_ENDPOINTS = {
@@ -151,16 +151,28 @@ export const LOCAL_DEMO_PAPERS: PaperResult[] = [
   },
 ];
 
+export function getApiBaseUrl(): string {
+  const envUrl =
+    import.meta.env["VITE_PAPERBRIDGE_API_URL"] ||
+    import.meta.env["VITE_API_BASE_URL"] ||
+    "";
+  return envUrl ? String(envUrl).trim().replace(/\/+$/, "") : "";
+}
+
 export function getLocalDemoResponse(payload: PaperSearchRequest): PaperSearchResponse {
   const query = payload.query.toLowerCase().trim();
-  const filtered = LOCAL_DEMO_PAPERS.filter((p) => {
+  const queryWords = query.split(/\s+/).filter((w) => w.length > 2);
+
+  let filtered = LOCAL_DEMO_PAPERS.filter((p) => {
     if (!query) return true;
-    return (
-      p.title.toLowerCase().includes(query) ||
-      p.abstract.toLowerCase().includes(query) ||
-      p.authors.some((a) => a.toLowerCase().includes(query))
-    );
+    const text = `${p.title} ${p.abstract} ${p.authors.join(" ")}`.toLowerCase();
+    if (text.includes(query)) return true;
+    return queryWords.some((word) => text.includes(word));
   });
+
+  if (filtered.length === 0) {
+    filtered = LOCAL_DEMO_PAPERS;
+  }
 
   return {
     query: payload.query,
@@ -173,28 +185,41 @@ export function getLocalDemoResponse(payload: PaperSearchRequest): PaperSearchRe
 }
 
 export async function searchPapers(payload: PaperSearchRequest): Promise<PaperSearchResponse> {
-  const apiBase = import.meta.env["VITE_PAPERBRIDGE_API_URL"];
+  const apiBase = getApiBaseUrl();
 
   // Rule: preserve local demo data when VITE_PAPERBRIDGE_API_URL is unset
   if (!apiBase) {
+    console.info("[PaperBridge AI] VITE_PAPERBRIDGE_API_URL unset: Using local benchmark demo data.");
     return getLocalDemoResponse(payload);
   }
 
-  const response = await fetch(`${apiBase}${PAPERBRIDGE_ENDPOINTS.search}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: payload.query,
-      mode: payload.mode || "topic",
-      limit: payload.limit ?? 10,
-    }),
-  });
+  const endpoint = `${apiBase}${PAPERBRIDGE_ENDPOINTS.search}`;
+  console.info(`[PaperBridge AI] Querying live backend: ${endpoint}`);
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: payload.query,
+        mode: payload.mode || "topic",
+        limit: payload.limit ?? 10,
+      }),
+    });
+  } catch (netErr: any) {
+    console.error("[PaperBridge AI] Network/CORS fetch error:", netErr);
+    throw new Error(
+      `Unable to connect to the backend server at ${apiBase}. Render free-tier instances sleep when inactive and take 45–60 seconds to boot on the first query. Please wait a moment and try again.`
+    );
+  }
 
   if (!response.ok) {
-    let msg = "Paper search is temporarily unavailable.";
+    let msg = `Backend returned HTTP ${response.status}`;
     try {
       const err = await response.json();
       if (err?.error) msg = err.error;
+      else if (err?.message) msg = err.message;
     } catch {
       // ignore json parse error
     }
@@ -202,4 +227,21 @@ export async function searchPapers(payload: PaperSearchRequest): Promise<PaperSe
   }
 
   return response.json() as Promise<PaperSearchResponse>;
+}
+
+export async function checkBackendHealth(): Promise<{ ok: boolean; message: string; url: string }> {
+  const apiBase = getApiBaseUrl();
+  if (!apiBase) {
+    return { ok: false, message: "VITE_PAPERBRIDGE_API_URL is unset (running in demo mode)", url: "" };
+  }
+  try {
+    const res = await fetch(`${apiBase}${PAPERBRIDGE_ENDPOINTS.health}`);
+    if (res.ok) {
+      const data = await res.json();
+      return { ok: true, message: data?.status || "healthy", url: apiBase };
+    }
+    return { ok: false, message: `HTTP ${res.status}`, url: apiBase };
+  } catch (err: any) {
+    return { ok: false, message: err?.message || "Failed to fetch", url: apiBase };
+  }
 }

@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   searchPapers,
+  getApiBaseUrl,
   type PaperResult,
   type PaperSearchResponse,
   type SearchMode,
@@ -248,6 +249,7 @@ function Index() {
 
   // Search API lifecycle states
   const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchResponse, setSearchResponse] = useState<PaperSearchResponse | null>(null);
 
   useEffect(() => {
@@ -266,6 +268,7 @@ function Index() {
     if (!trimmed) return;
 
     setIsLoading(true);
+    setSearchError(null);
     setSubmittedQuery(trimmed);
 
     try {
@@ -275,7 +278,9 @@ function Index() {
         limit: 10,
       });
       setSearchResponse(response);
-    } catch {
+    } catch (err: any) {
+      console.error("[PaperBridge UI] Search error:", err);
+      setSearchError(err?.message || "Failed to contact search backend service.");
       setSearchResponse({
         query: trimmed,
         mode: targetMode,
@@ -351,6 +356,7 @@ function Index() {
   const isGenuineEmpty =
     searchResponse !== null &&
     !isLoading &&
+    !searchError &&
     searchResponse.total_results === 0 &&
     !searchResponse.no_alternative_found;
   const isFilterEmpty =
@@ -408,7 +414,7 @@ function Index() {
           </div>
           <div className="topbar-actions">
             <div className="source-status">
-              <span /> Academic sources ready
+              <span /> {getApiBaseUrl() ? "Academic sources ready (Live)" : "Academic sources ready (Demo)"}
             </div>
             <Button
               type="button"
@@ -573,6 +579,32 @@ function Index() {
             {isLoading && (
               <div className="loading-indicator">
                 Pico is tracing citation graphs and checking open-access repositories...
+              </div>
+            )}
+
+            {/* Backend Connection Error Notice */}
+            {searchError && (
+              <div className="empty-state-card border-dashed border-amber-400/80 bg-amber-50/70 dark:bg-amber-950/30 dark:border-amber-700/60">
+                <div className="empty-state-icon">
+                  <Mascot compact nocturnal={isDark} />
+                </div>
+                <h3 className="text-amber-900 dark:text-amber-200">Backend Connection Notice</h3>
+                <p className="empty-state-copy text-amber-800 dark:text-amber-300">
+                  {searchError}
+                </p>
+                <div className="empty-trail-box">
+                  <span className="empty-trail-label">Actions:</span>
+                  <div className="quick-row justify-center mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => performSearch(query, searchMode)}
+                      className="sketch-button"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" /> Retry Search
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
 

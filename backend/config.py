@@ -12,8 +12,13 @@ class Config:
     DEBUG = os.environ.get("FLASK_DEBUG", "True").lower() in ("true", "1")
 
     # Security: CORS Allowed Origins
-    # Restrict to local development & production frontend origins
-    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000").split(",")
+    # Default to "*" so production frontends (Vercel, Lovable, preview branches)
+    # and local development environments work reliably without CORS rejection.
+    cors_env = os.environ.get("CORS_ORIGINS", "*")
+    if cors_env.strip() == "*":
+        CORS_ORIGINS = "*"
+    else:
+        CORS_ORIGINS = [o.strip() for o in cors_env.split(",") if o.strip()]
 
     # Semantic Scholar API Settings
     # Public endpoint supports up to 100 requests per 5 minutes without key

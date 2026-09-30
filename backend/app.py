@@ -32,7 +32,14 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     # Use configured frontend origins in development/production.
-    CORS(app, resources={r"/api/*": {"origins": Config.CORS_ORIGINS}}, supports_credentials=False)
+    # Defaults to wildcard "*" to support all Vercel domains, preview branches, and localhost.
+    CORS(
+        app,
+        resources={r"/*": {"origins": Config.CORS_ORIGINS}},
+        supports_credentials=False,
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        methods=["GET", "POST", "OPTIONS"]
+    )
 
     @app.errorhandler(Exception)
     def handle_global_error(e):
@@ -53,7 +60,8 @@ def create_app(config_class=Config):
             "message": "Welcome to PaperBridge AI API",
             "documentation": "/docs/architecture.md",
             "healthcheck": "/api/health",
-            "search_endpoint": "/api/search"
+            "search_endpoint": "/api/search",
+            "status": "healthy"
         })
 
     return app
